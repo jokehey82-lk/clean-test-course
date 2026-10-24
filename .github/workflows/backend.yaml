@@ -1,5 +1,6 @@
 name: Deploy Hangry Hippo to Elastic Beanstalk
-# The "on" directive defines when the action will run. "push" means push to a branch, "pull request" is when a Pull Request is created for a defined branch.  The "path" directive provides an extra condition to only trigger the action if there are changes in the specified directory.  
+# The "on" directive defines when the action will run. "push" means the action
+# runs on pushes to main; pull requests run tests without deploying.
 on:
   workflow_dispatch:
   push:
@@ -12,7 +13,7 @@ on:
       - main
     paths:
       - 'backend/**'
-#Jobs sets up the number of jobs to run during the deployment, "runs-on" is used to define the worker container to run the job in.  The default "work-directory" defines where in the source to start.  Since all changes for this workflow should be in "backend", it makes sense to start in the backend directory.  This job installs dependencies, runs tests, and creates a report.
+# Run backend unit tests for pushes and pull requests.
 jobs:
   unit_test:
     runs-on: ubuntu-latest
@@ -33,8 +34,11 @@ jobs:
         run: |
           coverage run -m --source=./hangry_api pytest
           coverage report
-#The deploy job sets the debug flag in the django settings.py file to false.  We perform this command in the build so that the developer can leave the debug flag as true for development purposes and does not have to change the flag every time they check in code.  After the debug flag is set, we zip the environment up (excluding the directory .git since these are files for source management) and deploy.  Afterwards, we use "configure-aws-credentials" to generate temporary AWS_ACCESS_KEY and AWS_ACCESS_SECRET environment variables.  We use these to deploy to the AWS environment.
+
+  # AWS credentials are not available to pull_request workflows in this context.
+  # Deploy only for trusted pushes to main or manual workflow_dispatch runs.
   deploy:
+    if: github.event_name != 'pull_request'
     needs: [unit_test]
     runs-on: ubuntu-latest
     permissions:
@@ -64,6 +68,6 @@ jobs:
           aws_secret_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           application_name: Hangry-api
           environment_name: Hangryapi-env
-          version_label: ${{ GITHUB.RUN_ID}}
+          version_label: ${{ github.run_id }}
           region: us-east-1
           deployment_package: backend/deploy.zip
