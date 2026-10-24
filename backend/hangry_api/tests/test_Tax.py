@@ -1,11 +1,10 @@
 from api.controllers import Tax
-from django_mock_queries.query import MockSet, MockModel
 
-def test_SimpleTax():
-  #Arrange
-  subtotal = 15
-  deliveryFee = 2.5
-  #Act
-  tax = Tax.calculate(subtotal, deliveryFee)
-  #Assert
-  assert tax == 1.44
+
+def test_simple_tax_with_default_delivery_fee():
+    subtotal = 15
+    delivery_fee = 3.50
+
+    tax = Tax.calculate(subtotal, delivery_fee)
+
+    assert tax == 1.53
